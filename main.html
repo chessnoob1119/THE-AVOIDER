@@ -1,0 +1,247 @@
+####TO DO LIST####
+# 점수 추가(or코인), 정지 화면, 장애물 이미지, 아이템, 이벤트(거대 운석, 외계인)
+
+import pygame
+import random
+import time
+from copy import deepcopy
+
+#pygame 초기화
+pygame.init()
+
+#변수 선언---------------------------------------------------------------------
+
+#화면 크기
+SCALE =  1.3
+screen_width = 800*SCALE
+screen_height = 600*SCALE
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("2D Side Scroller")
+
+#색상
+white = (255, 255, 255)
+black = (0, 0, 0)
+red = (255, 0, 0)
+black_alpha = (0,0,0,50)
+
+#폰트
+# font_big = pygame.font.Font(None, , )
+
+#플레이어
+player_width_init = 100*SCALE
+player_hight_init = 50*SCALE
+player_x_init = 50*SCALE
+player_y_init = screen_height - player_hight_init - 10*SCALE
+player_velocity_init = 5*SCALE
+player_image_path_init = 'res\\images\\spaceship.png'
+
+
+#배경
+background_width = 1600*SCALE
+background_height = 600*SCALE
+background_x = 0
+
+#배경 이미지 로드
+background = pygame.Surface((background_width, background_height))
+background.fill((black))
+for i in range(100):
+  pygame.draw.circle(background, white, (i * 16 *SCALE, random.randint(0, int(background_height))), 2*SCALE)
+
+#장애물 리스트
+obstacles = []
+
+#장애물 생성 타이머
+obstacle_timer = 0
+obstacle_interval = 30 #프레임 간격
+
+stage = "INGAME" #HOME, INGAME, PAUSE, GAMEOVER
+
+#surfaces
+pause_surface = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+
+#함수 선언 ---------------------------------------------------------------------
+
+def player_init():
+  global player_width
+  global player_hight
+  global player_x
+  global player_y
+  global player_velocity
+  global player_image_path
+  global player_image
+  global start_time
+  player_width = player_width_init
+  player_hight = player_hight_init
+  player_x = player_x_init
+  player_y = player_y_init
+  player_velocity = player_velocity_init
+  player_image_path = player_image_path_init
+  player_image = pygame.image.load(player_image_path_init)
+  player_image = pygame.transform.scale(player_image, (player_width_init, player_hight_init))
+  start_time = time.time()
+
+#draw
+def draw_home():
+  screen.fill(black)
+  
+''' 폰트 예제
+  font = pygame.font.SysFont('Comic Sans MS', 100)
+  text_surface = font.render('Game Over', True, white)
+  screen.blit(text_surface, (50,0))
+'''
+def draw_ingame():
+  #배경 그리기
+  screen.fill(black)
+  screen.blit(background, (background_x, 0))
+  screen.blit(background, (background_x + background_width // 2, 0))
+  #플레이어
+  screen.blit(player_image, (player_x, player_y))
+  #obstacle
+  for obstacle in obstacles:
+    obstacle.draw(screen)
+  score_text = pygame.font.SysFont('Comic Sans MS', int(30*SCALE)).render(f'score: {score}', True, white)
+  screen.blit(score_text, (screen_width - score_text.get_width() - 50*SCALE, 50*SCALE))
+
+def draw_gameover():
+  #배경 그리기
+  screen.fill(black)
+  screen.blit(background, (background_x, 0))
+  screen.blit(background, (background_x + background_width // 2, 0))
+  
+  gameover_text = pygame.font.SysFont('Comic Sans MS', int(100*SCALE)).render('Game Over', True, white)
+  restart_text = pygame.font.SysFont('hyshortsamulmedium', int(60*SCALE)).render('<Press Enter to Restart>', True, (128,128,128))
+  score_text = pygame.font.SysFont('hyshortsamulmedium', int(100*SCALE)).render(f'score: {score}', True, white)
+  screen.blit(gameover_text, (50*SCALE,0*SCALE))
+  screen.blit(restart_text, (screen_width/2 - restart_text.get_width()/2, 500*SCALE))
+  screen.blit(score_text, (screen_width/2 - score_text.get_width()/2, 300*SCALE))
+
+def draw_pause_surface():
+  #배경 그리기
+  # screen.fill(black)
+  pause_surface.fill(black_alpha)
+  # screen.blit(background, (background_x, 0))
+  # screen.blit(background, (background_x + background_width // 2, 0))
+  paused_text = pygame.font.SysFont('Comic Sans MS', int(100*SCALE)).render('PAUSED', True, white)
+  pause_surface.blit(paused_text, (50*SCALE,0*SCALE))
+  screen.blit(pause_surface,(0,0))
+
+#장애물 정의
+class Obstacle:
+  def __init__(self):
+    # self.img_path = '/'
+    self.width = 20*SCALE
+    self.height = random.randint(20, 100)*SCALE
+    self.x = screen_width
+    self.y = random.randint(0, int(screen_height - self.height))
+    self.velocity = 7*SCALE
+
+  def move(self):
+    self.x -= self.velocity
+    
+  def draw(self, screen):
+    pygame.draw.rect(screen, red, (self.x, self.y, self.width, self.height))
+  
+  def get_rect(self):
+    return pygame.Rect(self.x, self.y, self.width, self.height)
+
+
+player_init() #home -> ingame 갈때 실행
+#게임 루프
+running = True
+while running:
+  keys = pygame.key.get_pressed()
+  match stage:
+    case "HOME":
+      draw_home()
+      
+    case "INGAME":
+      score = int(time.time() - start_time)
+      draw_ingame()
+      #키 설정
+      if keys[pygame.K_LEFT] and player_x > 0:
+        player_x -= player_velocity
+      if keys[pygame.K_RIGHT] and player_x < screen_width - player_width:
+        player_x += player_velocity
+      if keys[pygame.K_UP] and player_y > 0:
+        player_y -= player_velocity
+      if keys[pygame.K_DOWN] and player_y < screen_height - player_hight:
+        player_y += player_velocity
+      
+      #배경 움직임
+      background_x -= player_velocity
+      if background_x <= -background_width / 2:
+        background_x = 0
+  
+      #장애물 생성
+      obstacle_count = 4
+      obstacle_timer += 1
+      if obstacle_timer >= obstacle_interval:
+        for i in range(obstacle_count):
+          obstacles.append(Obstacle())
+        obstacle_timer = 0
+
+      #장애물 이동 및 충돌 감지
+      player_rect = pygame.Rect(player_x, player_y, player_width, player_hight)
+      for obstacle in obstacles:
+        obstacle.move()
+        if player_rect.colliderect(obstacle.get_rect()):
+          player_image_path = 'res\\images\\spaceship_broken.png'
+          player_image = pygame.image.load(player_image_path)
+          player_image = pygame.transform.scale(player_image, (player_width_init, player_hight_init))
+          stage = "ENDING"
+          ending_speed = obstacle.velocity
+
+    case "ENDING":
+      draw_ingame()
+      #배경 및 장애물 움직임
+      background_x -= player_velocity
+      if background_x <= -background_width / 2:
+        background_x = 0
+      for obstacle in obstacles:
+        obstacle.move()
+      player_x -= ending_speed
+      if len(obstacles) == 0 and player_x <= -player_width:
+        stage = "GAMEOVER"
+
+    case "GAMEOVER":
+      draw_gameover()
+      #배경 움직임
+      background_x -= player_velocity
+      if background_x <= -background_width / 2:
+        background_x = 0
+
+
+      #restart
+      if keys[pygame.K_RETURN]:
+        player_init()
+
+        stage = "INGAME"
+
+    case "PAUSE":
+      draw_pause_surface()
+
+
+  for event in pygame.event.get():
+    if event.type == pygame.QUIT:
+      running = False
+    elif event.type == pygame.KEYDOWN:
+      if event.key == pygame.K_ESCAPE:
+        if stage != "PAUSE": 
+          current_stage = stage
+          stage = "PAUSE"
+        else:
+          stage = current_stage
+
+  for obstacle in obstacles:
+    if obstacle.x <= -obstacle.width:
+      obstacles.remove(obstacle)
+
+  
+
+
+  pygame.display.flip()
+
+  pygame.time.Clock().tick(60)
+
+
+pygame.quit()
